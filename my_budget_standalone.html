@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>My Budget</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+:root{--bg:#f3f5f9;--cd:#fff;--tx:#1b2430;--mu:#667286;--bd:#dbe2ec;--pr:#1f4e79;--ac:#2c75b4;--ok:#1d6b44;--bad:#b3341b;--in:#fff8c4;--ch:#e6eef8;--on:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f141b;--cd:#18212b;--tx:#e6ebf2;--mu:#94a1b3;--bd:#2a3644;--pr:#8ec0ee;--ac:#4a8fc9;--ok:#62c692;--bad:#ff8d74;--in:#3b3820;--ch:#213040;--on:#0d1621}}
+:root[data-theme="dark"]{--bg:#0f141b;--cd:#18212b;--tx:#e6ebf2;--mu:#94a1b3;--bd:#2a3644;--pr:#8ec0ee;--ac:#4a8fc9;--ok:#62c692;--bad:#ff8d74;--in:#3b3820;--ch:#213040;--on:#0d1621}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:720px;margin:0 auto;padding:12px 12px 96px}
+h1{font-size:19px;margin:6px 0;color:var(--pr)}
+.card{background:var(--cd);border:1px solid var(--bd);border-radius:12px;padding:12px;margin:10px 0}
+.card h2{font-size:15px;margin:0 0 8px;color:var(--pr)}
+.row{display:flex;gap:6px;align-items:center;margin:5px 0}
+.row>*{min-width:0}
+input,select,button{font:inherit;color:var(--tx)}
+input,select{background:var(--in);border:1px solid var(--bd);border-radius:8px;padding:8px;width:100%;box-sizing:border-box}
+.n{width:100px;flex:none;text-align:right}
+button{border:0;border-radius:8px;padding:8px 14px;background:var(--ac);color:var(--on);cursor:pointer}
+.row>button{flex:none}
+.x{background:none;color:var(--bad);padding:6px 8px}
+.g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0}
+.k{background:var(--ch);border-radius:10px;padding:8px;text-align:center}
+.k b{display:block;font-size:15px}.k span{font-size:12px;color:var(--mu)}
+.t{width:100%;border-collapse:collapse}.t td,.t th{padding:8px 4px;border-bottom:1px solid var(--bd);text-align:right}
+.t td:first-child,.t th:first-child{text-align:left}.t tr[onclick]{cursor:pointer}
+.bar{height:10px;background:var(--ch);border-radius:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--ok)}
+.neg{color:var(--bad)}.pos{color:var(--ok)}.mu{color:var(--mu);font-size:12px}
+.nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--cd);border-top:1px solid var(--bd);padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px))}
+.nav button{flex:1;background:none;color:var(--mu);padding:6px 0;font-size:12px;border-radius:0}
+.nav button.on{color:var(--pr);font-weight:700}
+#toast{display:none;position:fixed;left:12px;right:12px;bottom:calc(76px + env(safe-area-inset-bottom,0px));background:var(--pr);color:var(--on);padding:10px;border-radius:10px;text-align:center}
+</style></head><body>
+<main id="app"></main><nav id="nav" class="nav"></nav><div id="toast"></div>
+<script>
+const NM=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],FN=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const M=[];for(let y=2026,m=11;y<2028;){M.push(y+'-'+String(m).padStart(2,'0'));if(++m>12){m=1;y++}}
+const lab=ym=>ym?NM[+ym.slice(5)-1]+'-'+ym.slice(2,4):'';
+const full=ym=>FN[+ym.slice(5)-1]+' '+ym.slice(0,4);
+const fm=n=>(n<0?'−':'')+'৳'+Math.abs(Math.round(n||0)).toLocaleString('en-IN');
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const sum=(a,f)=>a.reduce((t,x)=>t+(+f(x)||0),0);
+const td=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const gv=id=>document.getElementById(id).value;
+const k=(l,v,c)=>`<div class="k"><span>${l}</span><b class="${c||''}">${v}</b></div>`;
+const TPL=[['Chal Rice/Lentils',15,65],['Dal Rice/Lentils',2,140],['Ata Rice/Lentils',2,65],['Soyabin Tel Others',2,190],['Lobon Spices',1,35],['Chini Others',1,120],['Holud Gura Spices',.2,300],['Morich Gura Spices',.2,400],['Jira Gura Spices',.1,600],['Dhonia Gura Spices',.1,400],['Gorom Moshla Spices',.05,1000],['Ada-Rosun Spices',1,150],['Peyaj Vegetables',2,70],['Alu Vegetables',3,35],['Dim Milk/Eggs',30,12],['Rui/Katla Fish',2.5,280],['Murgi Meat',2,200],['Torol Dudh Milk/Eggs',1,450],['Moushumi Sobji Vegetables',1,450],['Lal Shak Vegetables',1,130],['Lebu Fruits',1,50],['Kacha Morich o Dhone Pata Vegetables',1,80],['Kola Fruits',1,150],['Apple Fruits',1,280],['Baby Soap/Shampoo Household',1,250],['Baby Lotion/Oil Household',1,200],['Bacchader Biscuit/Snacks Others',1,350],['Goshol Soap o Shampoo Household',1,400],['Kapor Kachar Soap/Powder o Detergent Household',1,350],['Dish Washing Liquid o Tissue Household',1,300]];
+const mkAll=()=>Object.fromEntries(M.map(m=>[m,TPL.map(([n,q,e])=>({d:'',n,q,e,c:0}))]));
+const mkI=x=>/market/i.test(x.n||'');
+const blank=()=>({inc:{},it:{},loans:[],rep:[],nid:0,mo:{total:0,inst:0,pay:[]},bank:{o:[0,0,0],tx:[]},mk:{},ts:0});
+const norm=s=>{s=Object.assign(blank(),s||{});s.mo=Object.assign({total:0,inst:0,pay:[]},s.mo);s.bank=Object.assign({o:[0,0,0],tx:[]},s.bank);if(!s.v){s.v=2;if(!Object.keys(s.mk).length)s.mk=mkAll();M.forEach(m=>{const a=s.it[m]=s.it[m]||[];if(!a.some(mkI))a.unshift({n:'Market',b:0,p:0})})}return s};
+const mk=ym=>sum(S.mk[ym]||[],x=>x.q*x.c),pd=(ym,x)=>mkI(x)?mk(ym):(+x.p||0);
+const seed=()=>norm({});
+let S=blank(),view='h',ci=Math.max(0,M.indexOf(td().slice(0,7))),sync=false,ref=null,last='',tm=null,dst='',dtm=null,dirty=false;
+/* PASTE YOUR GOOGLE CLIENT ID BETWEEN THE QUOTES (or paste it inside the app on the Home tab) */
+const CLIENT_ID='';
+
+function save(){S.ts=Date.now();stash();dirty=true;clearTimeout(dtm);if(conn())dtm=setTimeout(()=>dsync(false),3000)}
+const R=()=>{const y=scrollY;render();scrollTo(0,y)};
+function flash(t){const e=document.getElementById('toast');e.textContent=t;e.style.display='block';setTimeout(()=>e.style.display='none',2200)}
+
+const paid=l=>sum(S.rep.filter(r=>r.l==l.id),r=>r.a);
+const rem=l=>l.a-paid(l);
+function loanAuto(ym){const took=S.loans.filter(l=>l.t=='took');
+ const due=sum(took.filter(l=>l.m==ym),rem);
+ const p=sum(S.rep.filter(r=>(r.d||'').slice(0,7)==ym&&took.some(l=>l.id==r.l)),r=>r.a);
+ return{b:due+p,p}}
+function moAuto(ym){const mo=S.mo,t=+mo.total||0,i=+mo.inst||0;
+ const all=sum(mo.pay,p=>p.a),after=sum(mo.pay.filter(p=>p.d&&p.d.slice(0,7)>=ym),p=>p.a);
+ return{b:Math.max(0,Math.min(i,t-(all-after))),p:sum(mo.pay.filter(p=>p.d&&p.d.slice(0,7)==ym),p=>p.a)}}
+
+function ch(kd,ym,i,f,v){S[kd][ym][i][f]=(f=='s'||f=='n')?v:(+v||0);save();R()}
+function add(kd,ym){(S[kd][ym]=S[kd][ym]||[]).push(kd=='inc'?{s:'',a:0}:{n:'',b:0,p:0});save();R()}
+function del(kd,ym,i){S[kd][ym].splice(i,1);save();R()}
+function go(d){ci=Math.max(0,Math.min(M.length-1,ci+d));R()}
+function addLoan(){const who=gv('lw').trim(),a=+gv('la');if(!who||!(a>0))return flash('Enter a name and an amount');
+ S.nid++;S.loans.push({id:'L'+String(S.nid).padStart(2,'0'),d:gv('ld'),who,t:gv('lt'),a,m:gv('lm')});save();R()}
+function addRep(){const l=gv('rl'),a=+gv('ra');if(!l||!(a>0))return flash('Enter an amount');S.rep.push({l,d:gv('rd'),a,n:gv('rn')});save();R()}
+function delLoan(id){S.loans=S.loans.filter(l=>l.id!=id);S.rep=S.rep.filter(r=>r.l!=id);save();R()}
+function delRep(i){S.rep.splice(i,1);save();R()}
+function setMo(f,v){S.mo[f]=+v||0;save();R()}
+function addMo(){const a=+gv('ma');if(!(a>0))return flash('Enter an amount');S.mo.pay.push({f:gv('mf').trim()||'Payment',d:gv('md'),a,n:gv('mn')});save();R()}
+function delMo(i){S.mo.pay.splice(i,1);save();R()}
+
+const stash=()=>{try{localStorage.setItem('bud1',JSON.stringify(S))}catch(e){}};
+const cid=()=>CLIENT_ID||localStorage.getItem('bud_cid')||'',conn=()=>!!localStorage.getItem('bud_gd')&&!!cid(),rh=()=>{if(view=='h')R()};
+const derr=e=>{const c=e&&e.c;return({noid:'● Paste your Google Client ID first',nogis:'● Google sign-in did not load. Check internet.',auth:'● Sign-in expired. Tap Reconnect.',access_denied:'● Permission denied',popup_closed:'● Sign-in window closed',popup_failed_to_open:'● Popup blocked. Allow popups, then tap Connect',interaction_required:'● Tap Reconnect to sign in',immediate_failed:'● Tap Reconnect to sign in'}[c])||'● Drive error ('+c+'). Will retry'};
+const SC='https://www.googleapis.com/auth/drive.file',API='https://www.googleapis.com/drive/v3/files',qs=s=>encodeURIComponent(s);
+let tok=null,tokExp=0,tc=null,busy=false,fid=null,dfid=null,synced=!!localStorage.getItem('bud_gd');
+const gis=()=>window.google&&google.accounts&&google.accounts.oauth2;
+function auth(i){return new Promise((res,rej)=>{if(!cid())return rej({c:'noid'});if(!gis())return rej({c:'nogis'});
+ if(!tc||tc.k!==cid()){tc={k:cid(),c:google.accounts.oauth2.initTokenClient({client_id:cid(),scope:SC,callback:r=>{if(r.error)return tc.rej({c:r.error});tok=r.access_token;tokExp=Date.now()+((+r.expires_in||3600)-60)*1000;tc.res(tok)},error_callback:e=>tc.rej({c:(e&&e.type)||'popup_closed'})})}}
+ tc.res=res;tc.rej=rej;tc.c.requestAccessToken({prompt:i?'':'none'})})}
+async function gf(url,o,i){o=o||{};const t=(tok&&Date.now()<tokExp)?tok:await auth(i);
+ const r=await fetch(url,Object.assign({},o,{headers:Object.assign({},o.headers||{},{Authorization:'Bearer '+t})}));
+ if(r.status==401){tok=null;throw{c:'auth'}}if(!r.ok)throw{c:'http'+r.status};return r}
+async function ensure(i){let f=localStorage.getItem('bud_fid'),d=localStorage.getItem('bud_dfid');
+ if(!f){const r=await(await gf(API+'?fields=files(id)&q='+qs("name='My Budget Data' and mimeType='application/vnd.google-apps.folder' and trashed=false"),{},i)).json();f=r.files[0]&&r.files[0].id;
+  if(!f){f=(await(await gf(API+'?fields=id',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'My Budget Data',mimeType:'application/vnd.google-apps.folder'})},i)).json()).id}
+  localStorage.setItem('bud_fid',f)}
+ if(!d){const r=await(await gf(API+'?fields=files(id)&q='+qs("name='budget.json' and '"+f+"' in parents and trashed=false"),{},i)).json();d=r.files[0]&&r.files[0].id;if(d)localStorage.setItem('bud_dfid',d)}
+ fid=f;dfid=d||null}
+async function wr(){const body=JSON.stringify(S);dirty=false;
+ try{if(dfid){await gf('https://www.googleapis.com/upload/drive/v3/files/'+dfid+'?uploadType=media',{method:'PATCH',headers:{'Content-Type':'application/json'},body})}
+ else{const b='bud'+Date.now(),meta=JSON.stringify({name:'budget.json',parents:[fid],mimeType:'application/json'});
+  const r=await gf('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+b},body:'--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+meta+'\r\n--'+b+'\r\nContent-Type: application/json\r\n\r\n'+body+'\r\n--'+b+'--'});
+  dfid=(await r.json()).id;localStorage.setItem('bud_dfid',dfid)}}catch(e){dirty=true;throw e}}
+async function dsync(i,again){if(busy)return;busy=true;
+ try{await ensure(i);
+  if(!dfid){if(!S.ts)S.ts=Date.now();await wr();stash();dst='● Drive folder created and data saved'}
+  else{const x=norm(JSON.parse(await(await gf(API+'/'+dfid+'?alt=media',{},i)).text())),xt=x.ts||0,lt=S.ts||0;let useR=xt>lt;
+   if(!synced&&lt&&xt&&xt!=lt)useR=confirm('There is already data in Drive. OK = use the Drive data. Cancel = keep this device data and replace Drive.');
+   if(useR){S=x;stash();dirty=false;dst='● Loaded the latest data from Drive';R()}
+   else if(lt>xt||dirty){await wr();dst='● Saved to Drive'}else dst='● Drive is up to date'}
+  localStorage.setItem('bud_gd','1');synced=true}
+ catch(e){if(e&&e.c=='http404'&&!again){localStorage.removeItem('bud_fid');localStorage.removeItem('bud_dfid');busy=false;return dsync(i,1)}dst=derr(e)}
+ busy=false;rh()}
+async function connect(){if(!cid())return flash('Paste your Client ID first');synced=false;await dsync(true);if(dst.indexOf('Drive')>-1&&!/error|expired|denied|closed|Tap|Popup|load|Paste/.test(dst))localStorage.setItem('bud_gd','1');R()}
+const setCid=v=>{localStorage.setItem('bud_cid',v.trim());tc=null;R()};
+function exportData(){const b=new Blob([JSON.stringify(S,null,1)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='budget_backup_'+td()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
+function importData(el){const f=el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const x=norm(JSON.parse(r.result));if(!confirm('Replace all data in this app with the backup?'))return;S=x;save();R();flash('Backup imported')}catch(e){flash('Not a valid backup file')}};r.readAsText(f)}
+const vDrive=()=>{const c=cid();return `<div class="card"><h2>☁️ Google Drive sync</h2>${CLIENT_ID?'':`<div class="row"><input placeholder="Google Client ID" value="${esc(c)}" onchange="setCid(this.value)"></div>`}<div class="mu">${dst||(c?(conn()?'Connecting…':'Not connected yet'):'Paste your Client ID first')}</div><div class="row"><button onclick="connect()">${conn()?'Reconnect':'Connect Google Drive'}</button><button onclick="dsync(true)">Sync now</button></div><div class="row"><button onclick="exportData()">Export backup</button><button onclick="document.getElementById('imp').click()">Import backup</button><input id="imp" type="file" accept=".json,application/json" style="display:none" onchange="importData(this)"></div><div class="mu">Data lives in your Drive folder My Budget Data (file budget.json).</div></div>`};
+const BN=['City Bank','IBBL','Asia Bank'];
+const bal=i=>(+S.bank.o[i]||0)+sum(S.bank.tx.filter(x=>x.b==i),x=>x.t=='d'?x.a:-x.a);
+function setOpen(i,v){S.bank.o[i]=+v||0;save();R()}
+function addTx(){const a=+gv('ba');if(!(a>0))return flash('Enter an amount');S.bank.tx.push({b:+gv('bb'),t:gv('bt'),d:gv('bd'),a,n:gv('bn')});save();R()}
+function delTx(i){S.bank.tx.splice(i,1);save();R()}
+const lx=()=>{const h=d=>!d||d<=td(),f=t=>sum(S.loans.filter(l=>l.t==t&&h(l.d)),l=>l.a)-sum(S.rep.filter(r=>h(r.d)&&(S.loans.find(l=>l.id==r.l)||{}).t==t),r=>r.a);return f('took')-f('gave')};
+function vExtra(I,P,owe,get){const bt=sum(BN,(n,i)=>bal(i)),nd=bt-sum(S.bank.o,x=>x),cash=I-P-nd+lx(),ts=bt+cash;
+ return `<div class="card"><h2>🏦 Bank and cash</h2><div class="g">${k('Bank total',fm(bt))}${k('Cash in hand',fm(cash),cash<0?'neg':'')}${k('Total saving',fm(ts),ts<0?'neg':'pos')}</div><div class="mu">Net after loans: ${fm(ts-lx())}</div></div>
+${vDrive()}`}
+const bd=(i,t,f)=>sum(S.bank.tx.filter(x=>x.b==i&&x.t==t&&f(x)),x=>x.a);
+const txr=(x,i,del)=>`<div class="row"><div style="flex:1">${BN[x.b]} · ${x.t=='d'?'Deposit':'Withdraw'} ${fm(x.a)}<div class="mu">${x.d||''}${x.n?' · '+esc(x.n):''}</div></div>${del?`<button class="x" onclick="delTx(${i})">✕</button>`:''}</div>`;
+const bankMo=ym=>`<div class="card"><h2>🏦 Bank this month</h2>${S.bank.tx.filter(x=>(x.d||'').slice(0,7)==ym).map(x=>txr(x,0,0)).join('')||'<div class="mu">No deposit or withdraw. Add in the Bank tab.</div>'}</div>`;
+function vBank(){const op=i=>+S.bank.o[i]||0,m0=M[0];
+ return `<h1>🏦 Bank</h1><div class="card"><h2>Actual bank balance</h2><div style="overflow-x:auto"><table class="t"><tr class="mu"><th>Bank</th><th>Opening</th><th>Deposit</th><th>Withdraw</th><th>Balance</th></tr>${BN.map((n,i)=>`<tr><td>${n}</td><td>${fm(op(i))}</td><td>${fm(op(i)+bd(i,'d',()=>1))}</td><td>${fm(bd(i,'w',()=>1))}</td><td><b>${fm(bal(i))}</b></td></tr>`).join('')}<tr><th>Total</th><th>${fm(sum(S.bank.o,x=>x))}</th><th></th><th></th><th>${fm(sum(BN,(n,i)=>bal(i)))}</th></tr></table></div><div class="mu">Deposit includes the opening balance, same as the sheet.</div></div>
+<div class="card"><h2>Opening balance</h2>${BN.map((n,i)=>`<div class="row"><label class="mu" style="flex:1">${n}</label><input class="n" style="width:130px" type="number" inputmode="decimal" value="${S.bank.o[i]||''}" onchange="setOpen(${i},this.value)"></div>`).join('')}</div>
+<div class="card"><h2>Add deposit or withdraw</h2><div class="row"><select id="bb">${BN.map((n,i)=>`<option value="${i}">${n}</option>`).join('')}</select><select id="bt"><option value="d">Deposit</option><option value="w">Withdraw</option></select></div><div class="row"><input id="bn" placeholder="Note"></div><div class="row"><input id="ba" class="n" type="number" inputmode="decimal" placeholder="Amount"><input id="bd" type="date" value="${td()}"><button onclick="addTx()">Add</button></div></div>
+<div class="card"><h2>Month by month</h2><div style="overflow-x:auto"><table class="t" style="font-size:12px"><tr class="mu"><th>Month</th>${BN.map(n=>`<th>${n.split(' ')[0]} dep</th><th>wdr</th>`).join('')}</tr>${M.map(ym=>`<tr><td>${lab(ym)}</td>${BN.map((n,i)=>`<td>${fm(bd(i,'d',x=>(x.d||'').slice(0,7)==ym)+(ym==m0?op(i):0))}</td><td>${fm(bd(i,'w',x=>(x.d||'').slice(0,7)==ym))}</td>`).join('')}</tr>`).join('')}</table></div></div>
+<div class="card"><h2>History</h2>${S.bank.tx.map((x,i)=>txr(x,i,1)).join('')||'<div class="mu">Nothing yet.</div>'}</div>`}
+const moSt=()=>{const t=+S.mo.total||0,p=sum(S.mo.pay,x=>x.a);return t<=0?'Set total first':t-p<=0?'✅ Fully paid':p==0?'Not started':'⏳ In progress'};
+const loanSum=()=>{const f=t=>{const a=S.loans.filter(l=>l.t==t);return[sum(a,l=>l.a),sum(a,paid),sum(a,rem)]},o=f('took'),g=f('gave'),r=(n,a)=>`<tr><td>${n}</td><td>${fm(a[0])}</td><td>${fm(a[1])}</td><td>${fm(a[2])}</td></tr>`;
+ return `<div class="card"><h2>🤝 Loan summary</h2><table class="t"><tr class="mu"><th></th><th>Total</th><th>Paid</th><th>Left</th></tr>${r('📥 I owe',o)}${r('📤 I get',g)}</table><div class="mu">Net (receive − pay): <b class="${g[2]-o[2]<0?'neg':'pos'}">${fm(g[2]-o[2])}</b></div></div>`};
+let pw='';const setPw=v=>{pw=v;R()};
+function loanMonths(){const ls=(t,f)=>sum(S.loans.filter(l=>l.t==t&&f(l)),rem),ppl=[...new Set(S.loans.map(l=>l.who))];
+ const rows=M.map(ym=>[lab(ym),ls('took',l=>l.m==ym),ls('gave',l=>l.m==ym)]);rows.push(['Month not set',ls('took',l=>!M.includes(l.m)),ls('gave',l=>!M.includes(l.m))]);
+ return `<div class="card"><h2>📅 Month-wise pay / receive</h2><table class="t"><tr class="mu"><th>Month</th><th>To pay</th><th>To receive</th><th>Net</th></tr>${rows.map(r=>`<tr><td>${r[0]}</td><td>${fm(r[1])}</td><td>${fm(r[2])}</td><td>${fm(r[2]-r[1])}</td></tr>`).join('')}<tr><th>Total</th><th>${fm(sum(rows,r=>r[1]))}</th><th>${fm(sum(rows,r=>r[2]))}</th><th>${fm(sum(rows,r=>r[2]-r[1]))}</th></tr></table></div>
+<div class="card"><h2>🔍 Person-wise check</h2><div class="row"><select onchange="setPw(this.value)"><option value="">Choose person</option>${ppl.map(n=>`<option ${n==pw?'selected':''}>${esc(n)}</option>`).join('')}</select></div>${pw?`<div class="mu">I owe: <b>${fm(sum(S.loans.filter(l=>l.who==pw&&l.t=='took'),rem))}</b> · I will receive: <b>${fm(sum(S.loans.filter(l=>l.who==pw&&l.t=='gave'),rem))}</b></div>`:''}</div>`}
+const CT=[['🐟 Fish','fish'],['🥩 Meat','meat'],['🥦 Vegetables','vegetables'],['🌾 Rice/Lentils','rice/lentils'],['🧴 Spices','spices'],['🥛 Milk/Eggs','milk/eggs'],['🍌 Fruits','fruits'],['🧹 Household','household'],['📦 Others','others']];
+function mc(i,f,v){S.mk[M[ci]][i][f]=(f=='n'||f=='d')?v:(+v||0);save();R()}
+function addMk(){(S.mk[M[ci]]=S.mk[M[ci]]||[]).push({d:'',n:'',q:0,e:0,c:0});save();R()}
+function delMk(i){S.mk[M[ci]].splice(i,1);save();R()}
+function vMarket(){const ym=M[ci],a=S.mk[ym]||[],T=mk(ym),E=sum(a,x=>x.q*x.e),Bg=sum(S.it[ym]||[],x=>mkI(x)?x.b:0),ct=w=>sum(a.filter(x=>(x.n||'').toLowerCase().includes(w)),x=>x.q*x.c);
+ const ni=(i,f,v,ph,w)=>`<input class="n" style="width:${w}px" type="number" step="any" inputmode="decimal" placeholder="${ph}" value="${v||''}" onchange="mc(${i},'${f}',this.value)">`;
+ return `<div class="row"><button onclick="go(-1)">‹</button><h1 style="flex:1;text-align:center">🛒 ${full(ym)}</h1><button onclick="go(1)">›</button></div>
+<div class="g">${k('Market budget',fm(Bg))}${k('Spent',fm(T))}${k('Remaining',Bg?fm(Bg-T):'-',Bg-T<0?'neg':'')}</div>
+<div class="card"><h2>Market list</h2><div class="mu">Total = Qty × Confirm rate. Write a category word in the name: Fish, Meat, Vegetables, Rice/Lentils, Spices, Milk/Eggs, Fruits, Household, Others.</div>${a.map((x,i)=>`<div class="row"><input type="date" style="width:128px;flex:none" value="${x.d||''}" onchange="mc(${i},'d',this.value)"><input placeholder="Item" value="${esc(x.n)}" onchange="mc(${i},'n',this.value)"><button class="x" onclick="delMk(${i})">✕</button></div><div class="row">${ni(i,'q',x.q,'Qty',64)}${ni(i,'e',x.e,'Rate',78)}${ni(i,'c',x.c,'Confirm',78)}<span style="flex:1;text-align:right">${x.q*x.c?fm(x.q*x.c):'-'}</span></div>`).join('')}<button onclick="addMk()">+ Add item</button></div>
+<div class="card"><h2>Totals</h2><div class="g">${k('Estimated',fm(E))}${k('Confirmed',fm(T))}${k('Difference',fm(T-E),T-E>0?'neg':'pos')}</div></div>
+<div class="card"><h2>Category summary</h2><table class="t">${CT.map(([t,w])=>`<tr><td>${t}</td><td>${fm(ct(w))}</td></tr>`).join('')}<tr><th>Total</th><th>${fm(sum(CT,c=>ct(c[1])))}</th></tr></table></div>`}
+const stat=()=>'● Saved on this device';
+function vHome(){let I=0,P=0;
+ const rows=M.map((ym,i)=>{const a=sum(S.inc[ym]||[],x=>x.a),s=sum(S.it[ym]||[],x=>pd(ym,x))+moAuto(ym).p;I+=a;P+=s;
+  return `<tr onclick="ci=${i};view='m';render();scrollTo(0,0)"><td>${lab(ym)}</td><td>${fm(a)}</td><td>${fm(s)}</td><td class="${a-s<0?'neg':''}">${fm(a-s)}</td><td>${fm(mk(ym))}</td></tr>`}).join('');
+ const owe=sum(S.loans.filter(l=>l.t=='took'),rem),get=sum(S.loans.filter(l=>l.t=='gave'),rem);
+ const mp=sum(S.mo.pay,p=>p.a),mt=+S.mo.total||0,pc=mt>0?Math.min(100,mp/mt*100):0;
+ return `<h1>💰 My Budget</h1><div class="mu">${stat()}</div>
+<div class="card"><h2>Nov-26 to Dec-27</h2><div class="g">${k('Income',fm(I))}${k('Spend',fm(P))}${k('Net saving',fm(I-P),I-P<0?'neg':'pos')}</div></div>
+<div class="card"><h2>Month by month</h2><table class="t"><tr class="mu"><th>Month</th><th>Income</th><th>Spend</th><th>Net</th><th>Market</th></tr>${rows}<tr><th>Total</th><th>${fm(I)}</th><th>${fm(P)}</th><th>${fm(I-P)}</th><th>${fm(sum(M,mk))}</th></tr></table></div>
+${vExtra(I,P,owe,get)}${loanSum()}
+<div class="card"><h2>🕌 Mohrana</h2><div class="bar"><i style="width:${pc}%"></i></div><div class="mu">${fm(mp)} paid of ${fm(mt)} · ${pc.toFixed(1)}% · ${moSt()}</div></div>`}
+
+function vMonth(){const ym=M[ci],inc=S.inc[ym]||[],it=S.it[ym]||[],L=loanAuto(ym),O=moAuto(ym);
+ const I=sum(inc,x=>x.a),mp=sum(it,x=>pd(ym,x)),B=sum(it,x=>x.b)+L.b+O.b,P=mp+L.p+O.p,sp=mp+O.p;
+ const auto=(t,a)=>`<div class="row"><b>${t}</b><span class="mu">auto</span></div><div class="mu">Budget ${fm(a.b)} · Paid ${fm(a.p)} · Left ${fm(a.b-a.p)}</div>`;
+ const num=(kd,i,f,v,ph)=>`<input class="n" type="number" inputmode="decimal" placeholder="${ph}" value="${v||''}" onchange="ch('${kd}','${ym}',${i},'${f}',this.value)">`;
+ return `<div class="row"><button onclick="go(-1)">‹</button><h1 style="flex:1;text-align:center">${full(ym)}</h1><button onclick="go(1)">›</button></div>
+<div class="g">${k('Income',fm(I))}${k('Spend',fm(sp))}${k('Net saving',fm(I-sp),I-sp<0?'neg':'pos')}</div>
+<div class="card"><h2>💰 Income</h2>${inc.map((x,i)=>`<div class="row"><input placeholder="Source" value="${esc(x.s)}" onchange="ch('inc','${ym}',${i},'s',this.value)">${num('inc',i,'a',x.a,'Amount')}<button class="x" onclick="del('inc','${ym}',${i})">✕</button></div>`).join('')}<button onclick="add('inc','${ym}')">+ Add income</button></div>
+<div class="card"><h2>🧾 Budget and paid</h2>${it.map((x,i)=>`<div class="row"><input placeholder="Item" value="${esc(x.n)}" onchange="ch('it','${ym}',${i},'n',this.value)"><button class="x" onclick="del('it','${ym}',${i})">✕</button></div><div class="row">${num('it',i,'b',x.b,'Budget')}${mkI(x)?`<span class="mu" style="flex:1">Paid ${fm(mk(ym))} (auto, Market tab)</span>`:num('it',i,'p',x.p,'Paid')}<span class="mu ${x.b-pd(ym,x)<0?'neg':''}">Left ${fm(x.b-pd(ym,x))}</span></div>`).join('')}<button onclick="add('it','${ym}')">+ Add item</button>${auto('🤝 Loan repayment',L)}${auto('🕌 Mohrana',O)}</div>
+${bankMo(ym)}<div class="card"><h2>Month total</h2><div class="g">${k('Budget',fm(B))}${k('Paid',fm(P))}${k('Left',fm(B-P),B-P<0?'neg':'')}</div></div>`}
+
+function vLoan(){const open=S.loans.filter(l=>rem(l)>0);
+ const owe=sum(S.loans.filter(l=>l.t=='took'),rem),get=sum(S.loans.filter(l=>l.t=='gave'),rem);
+ const st=l=>paid(l)<=0?['Pending','neg']:rem(l)<=0?['Cleared','pos']:['Partial',''];
+ const T=l=>l.t=='took'?'I Took':'I Gave';
+ return `<h1>🤝 Loans</h1><div class="g">${k('I owe',fm(owe))}${k('I will receive',fm(get))}${k('Net',fm(get-owe),get-owe<0?'neg':'pos')}</div>
+${loanMonths()}<div class="card"><h2>New loan</h2><div class="row"><input id="lw" placeholder="Person"><select id="lt"><option value="took">I Took</option><option value="gave">I Gave</option></select></div>
+<div class="row"><input id="la" class="n" type="number" inputmode="decimal" placeholder="Amount"><select id="lm"><option value="">Expected month</option>${M.map(m=>`<option value="${m}">${lab(m)}</option>`).join('')}</select></div>
+<div class="row"><input id="ld" type="date" value="${td()}"><button onclick="addLoan()">Add</button></div></div>
+<div class="card"><h2>Repayment (paid or received)</h2>${open.length?`<div class="row"><select id="rl">${open.map(l=>`<option value="${l.id}">${esc(l.who)} · ${T(l)} · left ${fm(rem(l))}</option>`).join('')}</select></div><div class="row"><input id="rn" placeholder="Note"></div><div class="row"><input id="ra" class="n" type="number" inputmode="decimal" placeholder="Amount"><input id="rd" type="date" value="${td()}"><button onclick="addRep()">Add</button></div>`:'<div class="mu">No open loans.</div>'}</div>
+<div class="card"><h2>All loans</h2>${S.loans.map(l=>{const s=st(l);return `<div class="row"><div style="flex:1"><b>${esc(l.who)}</b> · ${T(l)} ${fm(l.a)}<div class="mu">${l.id} · ${lab(l.m)||'no month'} · paid ${fm(paid(l))} · left ${fm(rem(l))} · <span class="${s[1]}">${s[0]}</span></div></div><button class="x" onclick="delLoan('${l.id}')">✕</button></div>`}).join('')||'<div class="mu">Nothing yet.</div>'}</div>
+<div class="card"><h2>Repayment history</h2>${S.rep.map((r,i)=>{const l=S.loans.find(x=>x.id==r.l)||{};return `<div class="row"><div style="flex:1">${esc(l.who)} · ${fm(r.a)}<div class="mu">${r.d||''} · ${r.l}${r.n?' · '+esc(r.n):''}</div></div><button class="x" onclick="delRep(${i})">✕</button></div>`}).join('')||'<div class="mu">Nothing yet.</div>'}</div>`}
+
+function vMoh(){const mo=S.mo,pd=sum(mo.pay,p=>p.a),t=+mo.total||0,r=t-pd,pc=t>0?Math.min(100,pd/t*100):0,ml=mo.inst>0?Math.max(0,Math.ceil(r/mo.inst)):'-';
+ return `<h1>🕌 Mohrana</h1><div class="card"><div class="row"><label class="mu" style="flex:1">Total mohrana (৳)</label><input class="n" style="width:130px" type="number" inputmode="decimal" value="${t||''}" onchange="setMo('total',this.value)"></div>
+<div class="row"><label class="mu" style="flex:1">Monthly installment (৳)</label><input class="n" style="width:130px" type="number" inputmode="decimal" value="${mo.inst||''}" onchange="setMo('inst',this.value)"></div></div>
+<div class="g">${k('Paid',fm(pd))}${k('Remaining',fm(r))}${k('Months left',ml)}</div>
+<div class="card"><div class="bar"><i style="width:${pc}%"></i></div><div class="mu">${pc.toFixed(1)}% paid · ${moSt()}</div></div>
+<div class="card"><h2>Add payment</h2><div class="row"><input id="mf" placeholder="Paid for (e.g. Kabin)"><input id="mn" placeholder="Note"></div><div class="row"><input id="ma" class="n" type="number" inputmode="decimal" placeholder="Amount"><input id="md" type="date" value="${td()}"><button onclick="addMo()">Add</button></div></div>
+<div class="card"><h2>Payments</h2>${mo.pay.map((p,i)=>`<div class="row"><div style="flex:1">${esc(p.f)} · ${fm(p.a)}<div class="mu">${p.d||'no date'}${p.n?' · '+esc(p.n):''}</div></div><button class="x" onclick="delMo(${i})">✕</button></div>`).join('')||'<div class="mu">Nothing yet.</div>'}</div>`}
+
+function render(){
+ document.getElementById('nav').innerHTML=[['h','🏠','Home'],['m','📅','Month'],['k','🛒','Market'],['l','🤝','Loan'],['b','🏦','Bank'],['o','🕌','Mohrana']].map(([v,i,t])=>`<button class="${v==view?'on':''}" onclick="view='${v}';render();scrollTo(0,0)">${i}<br>${t}</button>`).join('');
+ document.getElementById('app').innerHTML=({h:vHome,m:vMonth,k:vMarket,l:vLoan,b:vBank,o:vMoh})[view]()}
+
+const empty=()=>!S.loans.length&&!S.mo.pay.length&&!S.mo.total&&!S.bank.tx.length&&!sum(Object.values(S.inc),a=>a.length)&&!sum(Object.values(S.it),a=>sum(a,x=>x.b||x.p));
+try{const t=localStorage.getItem('bud1');if(t)S=norm(JSON.parse(t))}catch(e){}
+if(empty())S=seed();
+render();
+let tries=0;(function boot(){if(gis()){if(conn())dsync(false)}else if(tries++<40)setTimeout(boot,300)})();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&conn())dsync(false)});
+setInterval(()=>{if(!document.hidden&&conn())dsync(false)},60000);
+</script></body></html>
