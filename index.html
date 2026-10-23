@@ -121,12 +121,14 @@ const setCid=v=>{localStorage.setItem('bud_cid',v.trim());tc=null;R()};
 function exportData(){const b=new Blob([JSON.stringify(S,null,1)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='budget_backup_'+td()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
 function importData(el){const f=el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const x=norm(JSON.parse(r.result));if(!confirm('Replace all data in this app with the backup?'))return;S=x;save();R();flash('Backup imported')}catch(e){flash('Not a valid backup file')}};r.readAsText(f)}
 const SN=['Nov-26','Dec-26','January','February','March','April','May','June','July','August','September','October','November','December'],BC=['City','IBBL','Asia'];
+const MN=['Nov26-Market','Dec26-Market','Jan-Market','Feb-Market','Mar-Market','Apr-Market','May-Market','Jun-Market','Jul-Market','Aug-Market','Sep-Market','Oct-Market','Nov-Market','Dec-Market'];
 const mfv=m=>{const i=M.indexOf(m);return i<0?'':i==0?'2026-11-26':i==1?'2026-12-26':SN[i]};
 function sheetData(){const D=[],W=[],put=(r,v)=>D.push({range:r,values:v});
  const fill=(a,n,w,f,wd)=>{if(a.length>n)W.push(w);const o=a.slice(0,n).map(f);while(o.length<n)o.push(Array(wd).fill(''));return o};
  M.forEach((ym,i)=>{const q="'"+SN[i]+"'!",its=(S.it[ym]||[]).slice(),mi=its.findIndex(mkI),m1=mi>=0?its.splice(mi,1)[0]:null,sl=Array(18).fill(null);
   if(m1)sl[1]=m1;let j=0,over=false;its.forEach(x=>{while(j<18&&sl[j])j++;if(j<18)sl[j]=x;else over=true});if(over)W.push(lab(ym)+' items');
   put(q+'A4:C21',sl.map(x=>x?[x.n||'',+x.b||'',+x.p||'']:['','','']));
+  put("'"+MN[i]+"'!A4:E48",[['','Market total Others',1,+mk(ym)||'','']].concat(Array.from({length:44},()=>['','','','',''])));
   put(q+'A28:B33',fill(S.inc[ym]||[],6,lab(ym)+' income',x=>[x.s||'',+x.a||''],2));
   const tx=t=>S.bank.tx.filter(x=>x.t==t&&(x.d||'').slice(0,7)==ym);
   put(q+'M4:P23',fill(tx('d'),20,lab(ym)+' deposits',x=>[x.d,BC[x.b],x.a,x.n||''],4));
